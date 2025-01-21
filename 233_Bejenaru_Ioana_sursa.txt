@@ -1,0 +1,1629 @@
+--ÎNCEPEM PRIN A CREA TABELELE DIN DIGRAMA CONCEPTUALA
+--constraint-urile ne ajuta in gestionarea erorilor
+--daca voi incerca sa inserez anumite lucruri care incalca constrainturile
+--voi primi mesaj de eroare cu acel constraint si ma ajuta sa imi dau seama ce am gresit
+
+--DEPARTAMENTE
+create table departamente(
+    cod_departament number(3) constraint pk_cod_departament primary key, --are implicit NOT NULL
+    denumire varchar2(15) constraint n_denumire not null unique);
+    
+--ORASE
+create table orase(
+    cod_oras number(4) constraint pk_cod_oras primary key,
+    denumire varchar2(15) constraint n_denumire_orase not null unique,
+    populatie number(12) constraint n_populatie not null);
+
+--HOTELURI
+create table hoteluri(
+    cod_hotel number(4) constraint pk_cod_hotel primary key,
+    cod_oras number(4) constraint n_cod_oras not null,
+    denumire varchar2(15) constraint n_denumire_hoteluri not null,
+    numar_stele number(2) constraint n_numar_stele not null,
+    numar_etaje number(2) constraint n_numar_etaje not null,
+    constraint fk_oras 
+        foreign key(cod_oras) 
+        references orase(cod_oras) on delete cascade);
+
+--TIPURI_CAMERA
+create table tipuri_camera(
+    cod_tip_camera number(2) constraint pk_cod_tip_camera primary key,
+    denumire varchar2(15) constraint n_denumire_tipuri_camera not null,
+    pret_noapte number(4) constraint n_pret_noapte not null,
+    capacitate number(2) constraint n_capacitate not null);
+
+--TIPURI_CAMERA_HOTEL
+create table tipuri_camera_hotel(
+    cod_hotel number(4) constraint fk_cod_hotel_tch references hoteluri(cod_hotel),
+    cod_tip_camera number(2) constraint fk_cod_tip_camera_tch references tipuri_camera(cod_tip_camera),
+    tarif number(5,3) constraint n_tarif not null,
+    constraint pk_tipuri_camera_hotel
+        primary key(cod_tip_camera, cod_hotel));
+
+--FACILITATI
+create table facilitati(
+    cod_facilitate number(4) constraint pk_cod_facilitate primary key,
+    pret_constructie number(10) constraint n_pret_constructie not null,
+    denumire varchar2(15) constraint n_denumire_facilitati not null);
+
+--ABONAMENTE
+create table abonamente(
+    cod_abonament number(3) constraint pk_cod_abonament primary key,
+    pret_pe_zi number(4) constraint n_pret_pe_zi not null,
+    denumire varchar2(15) constraint n_denumire_abonamente not null unique);
+
+--FACILITATI_HOTELURI
+create table facilitati_hoteluri(
+--daca un hotel intra in faliment sau este vandut dispar automat si facilitatile acestuia
+    cod_hotel number(4) constraint fk_cod_hotel 
+        references hoteluri(cod_hotel) on delete cascade,
+    cod_facilitate number(4),
+    numar_locuri number(6) constraint n_numar_locuri not null,
+    ora_deschidere varchar2(6) constraint n_ora_deschidere not null,
+    ora_inchidere varchar2(6) constraint n_ora_inchidere not null,
+    constraint fk_cod_facilitate
+        foreign key (cod_facilitate)
+        references facilitati(cod_facilitate), 
+    constraint pk_facilitati_hoteluri primary key(cod_hotel, cod_facilitate));
+
+--FACILITATI_ABONAMENTE
+create table facilitati_abonamente(
+    cod_facilitate number(4)constraint fk_cod_facilitate_fa
+        references facilitati(cod_facilitate),
+--daca un abonament este scos de antreprenor din cadrul hotelurilor acestuia
+--atunci si liniile aferente din tabela facilitati_abonamente trebuie sterse
+    cod_abonament number(3) constraint fk_cod_abonament_fa
+        references abonamente(cod_abonament) on delete cascade,
+    numar_intrari_zi number(3) constraint n_numar_intrari_zi not null,
+    constraint pk_facilitati_abonamente
+        primary key(cod_facilitate, cod_abonament));
+
+--ANGAJATI
+create table angajati(
+    cod_angajat number(5) constraint pk_cod_angajat primary key,
+    cod_departament number(3) constraint n_cod_departament not null,
+    cod_hotel number(4) constraint n_cod_hotel not null,
+    nume varchar2(15) constraint n_nume not null,
+    prenume varchar2(20) constraint n_prenume not null,
+    data_nastere date constraint n_data_nastere not null,
+    salariu number(7) constraint n_salariu not null,
+    data_angajare date constraint n_data_angajare not null,
+    comision number(2,2) default null,
+    constraint fk_departament
+        foreign key (cod_departament)
+        references departamente(cod_departament) on delete cascade,
+    constraint fk_hotel
+        foreign key (cod_hotel)
+        references hoteluri(cod_hotel) on delete cascade);
+
+--CAMERE
+create table camere(
+    cod_camera number(4),
+    cod_hotel number(4),
+    cod_tip_camera number(2) constraint n_cod_tip_camera not null,
+    etaj number(2) constraint n_etaj not null,
+    constraint fk_cod_tip_camera
+        foreign key (cod_tip_camera)
+        references tipuri_camera(cod_tip_camera),
+--daca se intampla ceva cu un hotel, se intampla automat si cu camerele acestuia
+    constraint fk_cod_hotel_camere
+        foreign key (cod_hotel)
+        references hoteluri(cod_hotel) on delete cascade,
+    constraint pk_camere
+        primary key(cod_camera, cod_hotel));
+
+--CLIENTI
+create table clienti(
+    cod_client number(15) constraint pk_cod_client primary key,
+    cod_abonament number(3) constraint n_cod_abonament not null,
+    nume varchar2(15) constraint n_nume_clienti not null,
+    prenume varchar2(20) constraint n_prenume_clienti not null,   
+    data_nastere date constraint n_data_nastere_client not null,
+    cnp varchar2(14) constraint n_cnp not null unique,
+    numar_telefon varchar2(12) constraint n_numar_telefon not null unique,
+    email varchar2(30) default null,
+    constraint fk_cod_abonament
+        foreign key (cod_abonament)
+        references abonamente(cod_abonament) on delete set null);
+--daca scoatem un tip de abonament nu stergem si clientul
+
+--TRANZACTII
+create table tranzactii(
+    cod_tranzactie number(15) constraint pk_cod_tranzactie primary key,
+    tip_tranzactie varchar2(5) constraint n_tip_tranzactie not null,
+    banca varchar2(15),
+    suma number(10) constraint n_suma not null);
+
+--REZERVARI
+create table rezervari(
+    cod_camera number(4),
+    cod_hotel number(4),
+    cod_client number(15),
+    cod_tranzactie number(15),
+    data_venire date,
+    data_plecare date constraint n_data_plecare not null,
+    numar_persoane number(2) constraint n_numar_persoane not null,
+    constraint fk_cod_client
+        foreign key(cod_client)
+        references clienti(cod_client) on delete cascade,
+    constraint fk_camere
+        foreign key (cod_camera, cod_hotel)
+        references camere(cod_camera, cod_hotel) on delete cascade,
+    constraint fk_cod_tranzactie
+        foreign key (cod_tranzactie)
+        references tranzactii(cod_tranzactie) on delete cascade,
+    constraint pk_rezervari
+        primary key(cod_camera, cod_hotel, cod_client, cod_tranzactie, data_venire),
+    unique (cod_camera, cod_hotel, data_venire));
+
+--VARIABILE_GLOBALE
+create table variabile_globale(
+    nume varchar2(40) constraint pk_nume_vg primary key,
+    valoare_char varchar2(40),
+    valoare_numerica number(10,3));
+
+--DROP - URI
+--tabele
+drop table departamente;
+drop table orase;
+drop table hoteluri;
+drop table tipuri_camera;
+drop table tipuri_camera_hotel;
+drop table facilitati;
+drop table abonamente;
+drop table facilitati_hoteluri;
+drop table facilitati_abonamente;
+drop table camere;
+drop table angajati;
+drop table clienti;
+drop table tranzactii;
+drop table rezervari;
+--secvente
+drop sequence ct_cod_departament;
+drop sequence ct_cod_oras;
+drop sequence ct_cod_hotel;
+drop sequence ct_cod_angajat;
+drop sequence ct_cod_facilitate;
+drop sequence ct_cod_facilitate;
+drop sequence ct_cod_tip_camera;
+drop sequence ct_cod_client;
+drop sequence ct_cod_tranzactie;
+drop sequence ct_cod_camera_hotel_15;
+drop sequence ct_cod_abonament;
+
+
+
+--SECVENTE PENTRU INREGISTRARILE TABELELOR
+create sequence ct_cod_departament
+start with 1
+increment by 1
+minvalue 1
+maxvalue 999
+nocycle
+nocache;
+
+create sequence ct_cod_oras
+start with 1
+increment by 1
+minvalue 1
+maxvalue 9999
+nocycle
+nocache;
+
+create sequence ct_cod_hotel
+start with 1
+increment by 1
+minvalue 1
+maxvalue 9999
+nocycle
+nocache;
+
+create sequence ct_cod_angajat
+start with 1
+increment by 1
+minvalue 1
+maxvalue 99999
+nocycle
+nocache;
+
+create sequence ct_cod_facilitate
+start with 1
+increment by 1
+minvalue 1
+maxvalue 9999
+nocycle
+nocache;
+
+create sequence ct_cod_tip_camera
+start with 1
+increment by 1
+minvalue 1
+maxvalue 99
+nocycle
+nocache;
+
+create sequence ct_cod_client
+start with 1
+increment by 1
+minvalue 1
+maxvalue 999999999999999
+nocycle
+nocache;
+
+create sequence ct_cod_tranzactie
+start with 1
+increment by 1
+minvalue 1
+maxvalue 999999999999999
+nocycle
+nocache;
+
+create sequence ct_cod_camera_hotel_1
+start with 1
+increment by 1
+minvalue 1
+maxvalue 9999
+nocycle
+nocache;
+
+
+create sequence ct_cod_camera_hotel_2
+start with 1
+increment by 1
+minvalue 1
+maxvalue 9999
+nocycle
+nocache;
+
+create sequence ct_cod_camera_hotel_3
+start with 1
+increment by 1
+minvalue 1
+maxvalue 9999
+nocycle
+nocache;
+
+create sequence ct_cod_camera_hotel_4
+start with 1
+increment by 1
+minvalue 1
+maxvalue 9999
+nocycle
+nocache;
+
+--aici doar am inlocuit numarul de la ct_cod_camera_hotel_nr
+
+create sequence ct_cod_camera_hotel_15
+start with 1
+increment by 1
+minvalue 1
+maxvalue 9999
+nocycle
+nocache;
+
+create sequence ct_cod_abonament
+start with 1
+increment by 1
+minvalue 1
+maxvalue 9999
+nocycle
+nocache;
+
+
+
+--INSERAREA INREGISTRARILOR
+
+--DEPARTAMENTE
+insert into departamente values(ct_cod_departament.nextval,'RECEPTIE');
+insert into departamente values(ct_cod_departament.nextval,'CURATENIE');
+insert into departamente values(ct_cod_departament.nextval,'MARKETING');
+insert into departamente values(ct_cod_departament.nextval,'CONTABILITATE');
+insert into departamente values(ct_cod_departament.nextval,'MENTENANTA');
+insert into departamente values(ct_cod_departament.nextval,'SECURITATE');
+insert into departamente values(ct_cod_departament.nextval,'IT');
+insert into departamente values(ct_cod_departament.nextval,'BUCATARIE');
+insert into departamente values(ct_cod_departament.nextval,'APROVIZIONARE');
+insert into departamente values(ct_cod_departament.nextval,'DIVERTISMENT');
+
+--ORASE
+insert into orase values(ct_cod_oras.nextval,'BUCURESTI',1830000);
+insert into orase values(ct_cod_oras.nextval,'CLUJ_NAPOCA',325000);
+insert into orase values(ct_cod_oras.nextval,'TIMISOARA',250000);
+insert into orase values(ct_cod_oras.nextval,'IASI',270000);
+insert into orase values(ct_cod_oras.nextval,'VASLUI',70000);
+insert into orase values(ct_cod_oras.nextval,'BRASOV',240000);
+insert into orase values(ct_cod_oras.nextval,'VATRA_DORNEI',20000);
+insert into orase values(ct_cod_oras.nextval,'CONSTANTA',265000);
+insert into orase values(ct_cod_oras.nextval,'MANGALIA',32000);
+insert into orase values(ct_cod_oras.nextval,'NAVODARI',35000);
+insert into orase values(ct_cod_oras.nextval,'EFORIE',10000);
+insert into orase values(ct_cod_oras.nextval,'CRAIOVA',235000);
+
+--HOTELURI
+insert into hoteluri values(ct_cod_hotel.nextval,1,'ROYAL_ORCHID',5,7);
+insert into hoteluri values(ct_cod_hotel.nextval,2,'ROYAL_ORCHID',5,7);
+insert into hoteluri values(ct_cod_hotel.nextval,3,'ROYAL_ORCHID',5,7);
+insert into hoteluri values(ct_cod_hotel.nextval,4,'ROYAL_ORCHID',5,7);
+insert into hoteluri values(ct_cod_hotel.nextval,8,'EMERALD_SHORES',4,5);
+insert into hoteluri values(ct_cod_hotel.nextval,9,'EMERALD_SHORES',4,5);
+insert into hoteluri values(ct_cod_hotel.nextval,11,'EMERALD_SHORES',4,5);
+insert into hoteluri values(ct_cod_hotel.nextval,8,'OCEAN_BREEZE',3,6);
+insert into hoteluri values(ct_cod_hotel.nextval,9,'OCEAN_BREEZE',3,6);
+insert into hoteluri values(ct_cod_hotel.nextval,10,'OCEAN_BREEZE',3,6);
+insert into hoteluri values(ct_cod_hotel.nextval,1,'BUSINESS_OASIS',5,6);
+insert into hoteluri values(ct_cod_hotel.nextval,2,'BUSINESS_OASIS',5,6);
+insert into hoteluri values(ct_cod_hotel.nextval,6,'EVEREST',3,6);
+insert into hoteluri values(ct_cod_hotel.nextval,7,'EVEREST',3,6);
+insert into hoteluri values(ct_cod_hotel.nextval,5,'ARRAKIS',3,4);
+
+--TIPURI_CAMERA
+insert into tipuri_camera values(ct_cod_tip_camera.nextval,'SINGLE',100,1);
+insert into tipuri_camera values(ct_cod_tip_camera.nextval,'DOUBLE',140,2);
+insert into tipuri_camera values(ct_cod_tip_camera.nextval,'TRIPLE',180,3);
+insert into tipuri_camera values(ct_cod_tip_camera.nextval,'GARSONIERA',250,2);
+insert into tipuri_camera values(ct_cod_tip_camera.nextval,'APARTAMENT',320,4);
+insert into tipuri_camera values(ct_cod_tip_camera.nextval,'PENTHOUSE',700,6);
+
+--FACILITATI
+insert into facilitati values(ct_cod_facilitate.nextval,500000,'PISCINA_INT');
+insert into facilitati values(ct_cod_facilitate.nextval,500000,'PISCINA_EXT');
+insert into facilitati values(ct_cod_facilitate.nextval,200000,'SPA');
+insert into facilitati values(ct_cod_facilitate.nextval,300000,'SALA_FITNESS');
+insert into facilitati values(ct_cod_facilitate.nextval,700000,'CINEMATOGRAF');
+insert into facilitati values(ct_cod_facilitate.nextval,600000,'RESTAURANT');
+insert into facilitati values(ct_cod_facilitate.nextval,200000,'SAUNA');
+insert into facilitati values(ct_cod_facilitate.nextval,1000000,'PARCARE');
+insert into facilitati values(ct_cod_facilitate.nextval,400000,'SALA_EVENIMENTE');
+
+--ABONAMENTE
+insert into abonamente values(ct_cod_abonament.nextval,0,'STANDARD');
+insert into abonamente values(ct_cod_abonament.nextval,100,'BRONZE');
+insert into abonamente values(ct_cod_abonament.nextval,150,'SILVER');
+insert into abonamente values(ct_cod_abonament.nextval,200,'GOLD');
+insert into abonamente values(ct_cod_abonament.nextval,250,'PLATINUM');
+insert into abonamente values(ct_cod_abonament.nextval,300,'DIAMOND');
+
+--FACILITATI_HOTELURI
+--parcari
+insert into facilitati_hoteluri values(1,8,2000,'00:00','23:59');
+insert into facilitati_hoteluri values(2,8,2000,'00:00','23:59');
+insert into facilitati_hoteluri values(3,8,2000,'00:00','23:59');
+insert into facilitati_hoteluri values(4,8,2000,'00:00','23:59');
+insert into facilitati_hoteluri values(11,8,2000,'00:00','23:59');
+insert into facilitati_hoteluri values(12,8,2000,'00:00','23:59');
+--retaurante
+insert into facilitati_hoteluri values(1,6,300,'09:00','22:00');
+insert into facilitati_hoteluri values(2,6,300,'09:00','22:00');
+insert into facilitati_hoteluri values(3,6,300,'09:00','22:00');
+insert into facilitati_hoteluri values(4,6,300,'09:00','22:00');
+insert into facilitati_hoteluri values(13,6,300,'09:00','22:00');
+insert into facilitati_hoteluri values(14,6,300,'09:00','22:00');
+insert into facilitati_hoteluri values(11,6,300,'09:00','22:00');
+--piscina_int
+insert into facilitati_hoteluri values(11,1,150,'10:00','22:00');
+insert into facilitati_hoteluri values(12,1,150,'10:00','22:00');
+--pisicina_ext
+insert into facilitati_hoteluri values(8,2,300,'08:00','20:00');
+insert into facilitati_hoteluri values(9,2,300,'08:00','20:00');
+insert into facilitati_hoteluri values(10,2,300,'08:00','20:00');
+insert into facilitati_hoteluri values(5,2,300,'08:00','20:00');
+insert into facilitati_hoteluri values(6,2,300,'08:00','20:00');
+insert into facilitati_hoteluri values(7,2,300,'08:00','20:00');
+--spa
+insert into facilitati_hoteluri values(1,3,50,'06:00','18:00');
+insert into facilitati_hoteluri values(2,3,50,'06:00','18:00');
+insert into facilitati_hoteluri values(3,3,50,'06:00','18:00');
+insert into facilitati_hoteluri values(4,3,50,'06:00','18:00');
+--sala_fitness
+insert into facilitati_hoteluri values(1,4,100,'06:00','20:00');
+insert into facilitati_hoteluri values(2,4,100,'06:00','20:00');
+insert into facilitati_hoteluri values(3,4,100,'06:00','20:00');
+insert into facilitati_hoteluri values(4,4,100,'06:00','20:00');
+--cinematograf
+insert into facilitati_hoteluri values(1,5,70,'13:00','00:00');
+
+--FACILITATI_ABONAMENTE
+--standard
+insert into facilitati_abonamente values(8,1,5);
+--bronze
+insert into facilitati_abonamente values(8,2,5);
+insert into facilitati_abonamente values(6,2,3);
+--silver
+insert into facilitati_abonamente values(8,3,5);
+insert into facilitati_abonamente values(6,3,3);
+insert into facilitati_abonamente values(1,3,1);
+insert into facilitati_abonamente values(2,3,1);
+--gold
+insert into facilitati_abonamente values(8,4,5);
+insert into facilitati_abonamente values(6,4,4);
+insert into facilitati_abonamente values(1,4,2);
+insert into facilitati_abonamente values(2,4,2);
+--platinum
+insert into facilitati_abonamente values(8,5,10);
+insert into facilitati_abonamente values(6,5,6);
+insert into facilitati_abonamente values(1,5,4);
+insert into facilitati_abonamente values(2,5,4);
+insert into facilitati_abonamente values(3,5,1);
+insert into facilitati_abonamente values(4,5,1);
+insert into facilitati_abonamente values(5,5,1);
+--diamond
+insert into facilitati_abonamente values(8,6,10);
+insert into facilitati_abonamente values(6,6,8);
+insert into facilitati_abonamente values(1,6,6);
+insert into facilitati_abonamente values(2,6,6);
+insert into facilitati_abonamente values(3,6,2);
+insert into facilitati_abonamente values(4,6,2);
+
+select *
+from angajati;
+--ANGAJATI
+insert into angajati values(ct_cod_angajat.nextval,1,1,'Popescu','Monica',to_date('01-October-2004'),3200,to_date('12-august-2014'),0.1);
+insert into angajati values(ct_cod_angajat.nextval,2,2,'Popa','Ilinca',to_date('06-September-1987'),2400,to_date('9-march-2019'),0.2);
+insert into angajati values(ct_cod_angajat.nextval,4,3,'Diaconu','Laurentiu',to_date('26-August-1976'),4200,to_date('2-january-2017'),NULL);
+insert into angajati values(ct_cod_angajat.nextval,5,4,'Chirila','Matei',to_date('10-November-1999'),3300,to_date('23-may-2013'),0.15);
+insert into angajati values(ct_cod_angajat.nextval,6,5,'Caliniuc','Gelu',to_date('14-September-1990'),3000,to_date('11-june-2018'),NULL);
+insert into angajati values(ct_cod_angajat.nextval,7,11,'Ungureanu','Darius',to_date('15-September-2003'),7000,to_date('14-december-2017'),NULL);
+insert into angajati values(ct_cod_angajat.nextval,8,6,'Bontea','Sorin',to_date('03-October-2001'),2400,to_date('3-november-2020'),0.3);
+insert into angajati values(ct_cod_angajat.nextval,9,7,'Popa','Cristian',to_date('24-December-1983'),3000,to_date('17-february-2019'),0.25);
+insert into angajati values(ct_cod_angajat.nextval,1,8,'Lungu','Florin',to_date('25-December-1997'),3200,to_date('4-october-2018'),NULL);
+insert into angajati values(ct_cod_angajat.nextval,2,9,'Grigorescu','Claudia',to_date('02-December-1988'),3000,to_date('1-april-2012'),0.08);
+insert into angajati values(ct_cod_angajat.nextval,4,10,'Sorescu','Bianca',to_date('06-October-1969'),4600,to_date('28-july-2020'),NULL);
+insert into angajati values(ct_cod_angajat.nextval,5,12,'Liteanu','Sergiu',to_date('09-December-2002'),3100,to_date('8-september-2016'),NULL);
+insert into angajati values(ct_cod_angajat.nextval,6,13,'Obreja','Catalin',to_date('16-October-1972'),3500,to_date('16-august-2017'),0.1);
+insert into angajati values(ct_cod_angajat.nextval,7,1,'Bejenaru','Ioana',to_date('28-November-1991'),6500,to_date('6-november-2018'),0.23);
+insert into angajati values(ct_cod_angajat.nextval,8,14,'Dumitru','Carmen',to_date('21-April-2004'),3800,to_date('20-january-2017'),NULL);
+insert into angajati values(ct_cod_angajat.nextval,9,2,'Constantinescu','Bogdan',to_date('30-March-2000'),2700,to_date('27-april-2017'),NULL);
+insert into angajati values(ct_cod_angajat.nextval,1,3,'Dobrescu','Roxana',to_date('21-August-1989'),2500,to_date('5-october-2016'),0.3);
+insert into angajati values(ct_cod_angajat.nextval,2,4,'Miculescu','Georgiana',to_date('19-August-1994'),2400,to_date('22-june-2020'),0.2);
+insert into angajati values(ct_cod_angajat.nextval,4,5,'Constandache','Alexia',to_date('18-November-1960'),4000,to_date('5-july-2019'),0.15);
+insert into angajati values(ct_cod_angajat.nextval,5,6,'Acatrinei','Horia',to_date('06-February-1984'),3200,to_date('14-march-2021'),0.05);
+insert into angajati values(ct_cod_angajat.nextval,6,7,'Mircea','Petrisor',to_date('05-January-1995'),3700,to_date('7-february-2021'),0.08);
+insert into angajati values(ct_cod_angajat.nextval,7,8,'Mircea','Dragos',to_date('27-November-1977'),5500,to_date('5-may-2017'),NULL);
+insert into angajati values(ct_cod_angajat.nextval,8,9,'Ouatu','Lidia',to_date('16-June-1978'),4200,to_date('22-june-2022'),NULL);
+insert into angajati values(ct_cod_angajat.nextval,9,10,'Lefter','Razvan',to_date('13-July-1980'),2900,to_date('10-december-2019'),0.1);
+insert into angajati values(ct_cod_angajat.nextval,1,11,'Olaru','Denisa',to_date('15-May-1983'),3100,to_date('9-july-2018'),0.05);
+insert into angajati values(ct_cod_angajat.nextval,2,12,'Ciurescu','Crina',to_date('15-August-2004'),2600,to_date('1-march-2017'),0.08);
+insert into angajati values(ct_cod_angajat.nextval,4,13,'Ungureanu','Olimpia',to_date('06-July-1982'),3700,to_date('16-august-2019'),0.2);
+insert into angajati values(ct_cod_angajat.nextval,6,14,'Chiratcu','Andrei',to_date('23-November-1990'),3000,to_date('17-april-2022'),NULL);
+select * from angajati;
+--CAMERE
+insert into camere values(ct_cod_camera_hotel_1.nextval,1,2,1);
+insert into camere values(ct_cod_camera_hotel_1.nextval,1,6,7);
+insert into camere values(ct_cod_camera_hotel_1.nextval,1,3,2);
+insert into camere values(ct_cod_camera_hotel_1.nextval,1,2,1);
+insert into camere values(ct_cod_camera_hotel_2.nextval,2,2,2);
+insert into camere values(ct_cod_camera_hotel_2.nextval,2,1,1);
+insert into camere values(ct_cod_camera_hotel_3.nextval,3,5,6);
+insert into camere values(ct_cod_camera_hotel_3.nextval,3,6,7);
+insert into camere values(ct_cod_camera_hotel_4.nextval,4,2,3);
+insert into camere values(ct_cod_camera_hotel_4.nextval,4,6,7);
+insert into camere values(ct_cod_camera_hotel_5.nextval,5,2,2);
+insert into camere values(ct_cod_camera_hotel_5.nextval,5,2,3);
+insert into camere values(ct_cod_camera_hotel_6.nextval,6,2,2);
+insert into camere values(ct_cod_camera_hotel_6.nextval,6,5,5);
+insert into camere values(ct_cod_camera_hotel_7.nextval,7,2,2);
+insert into camere values(ct_cod_camera_hotel_7.nextval,7,3,3);
+insert into camere values(ct_cod_camera_hotel_8.nextval,8,2,1);
+insert into camere values(ct_cod_camera_hotel_8.nextval,8,2,2);
+insert into camere values(ct_cod_camera_hotel_9.nextval,9,1,1);
+insert into camere values(ct_cod_camera_hotel_9.nextval,9,2,2);
+insert into camere values(ct_cod_camera_hotel_10.nextval,10,2,2);
+insert into camere values(ct_cod_camera_hotel_10.nextval,10,3,2);
+insert into camere values(ct_cod_camera_hotel_11.nextval,11,6,6);
+insert into camere values(ct_cod_camera_hotel_11.nextval,11,6,6);
+insert into camere values(ct_cod_camera_hotel_12.nextval,12,5,5);
+insert into camere values(ct_cod_camera_hotel_12.nextval,12,6,6);
+insert into camere values(ct_cod_camera_hotel_13.nextval,13,2,2);
+insert into camere values(ct_cod_camera_hotel_13.nextval,13,2,4);
+insert into camere values(ct_cod_camera_hotel_14.nextval,14,2,2);
+insert into camere values(ct_cod_camera_hotel_14.nextval,14,3,4);
+
+--CLIENTI
+insert into clienti values(ct_cod_client.nextval,1,'Ionescu','Maria',to_date('11-may-1998'),'2980511520013','0741123456','bejenaruioana20@gmail.com');
+insert into clienti values(ct_cod_client.nextval,2,'Vasilescu','Alexandru',to_date('8-june-1990'),'1900608520029','0722654321','bejenaruioana20@gmail.com');
+insert into clienti values(ct_cod_client.nextval,3,'Popa','Elena',to_date('28-november-1993'),'2931128520037','0765987654','bejenaruioana20@gmail.com');
+insert into clienti values(ct_cod_client.nextval,4,'Teodorescu','Raluca',to_date('6-august-1987'),'2870806520045','0733456789','bejenaruioana20@gmail.com');
+insert into clienti values(ct_cod_client.nextval,5,'Dumitrescu','Ana',to_date('13-april-2003'),'6030410520051','0788321654','bejenaruioana20@gmail.com');
+insert into clienti values(ct_cod_client.nextval,6,'Marin','Andrei',to_date('10-september-2000'),'5000901520064','0799112233','bejenaruioana20@gmail.com');
+insert into clienti values(ct_cod_client.nextval,1,'Georgescu','Cristina',to_date('14-june-1997'),'2970614520078','0744556677','bejenaruioana20@gmail.com');
+insert into clienti values(ct_cod_client.nextval,2,'Iliescu','Gabriel',to_date('22-february-1991'),'1910228520086','0712345678','bejenaruioana20@gmail.com');
+insert into clienti values(ct_cod_client.nextval,3,'Preda','Ioana',to_date('9-august-2001'),'6010809520093','0755123789','bejenaruioana20@gmail.com');
+insert into clienti values(ct_cod_client.nextval,4,'Mihailescu','Radu',to_date('3-october-1998'),'1981003520101','0766987123','bejenaruioana20@gmail.com');
+insert into clienti values(ct_cod_client.nextval,5,'Paunescu','Laura',to_date('11-july-1996'),'2960711520117','0723654987','bejenaruioana20@gmail.com');
+insert into clienti values(ct_cod_client.nextval,6,'Rusu','Vasile',to_date('4-december-1993'),'1931204520125','0745123789','bejenaruioana20@gmail.com');
+insert into clienti values(ct_cod_client.nextval,1,'Florescu','Diana',to_date('7-january-1992'),'2920107520134','0734456123','bejenaruioana20@gmail.com');
+insert into clienti values(ct_cod_client.nextval,2,'Enache','George',to_date('2-march-1978'),'1780302520148','0789321456','bejenaruioana20@gmail.com');
+insert into clienti values(ct_cod_client.nextval,3,'Anghel','Carmen',to_date('27-june-1977'),'2770627520156','0764777888','bejenaruioana20@gmail.com');
+insert into clienti values(ct_cod_client.nextval,2,'Dumitru','Daniela',to_date('15-september-1992'),'2920907520162','0743111222','bejenaruioana20@gmail.com');
+insert into clienti values(ct_cod_client.nextval,3,'Teodor','Carmen',to_date('27-june-1977'),'2770627520179','0798654321','bejenaruioana20@gmail.com');
+insert into clienti values(ct_cod_client.nextval,3,'Sandu','Florin',to_date('14-july-1981'),'1810711520187','0721333444','bejenaruioana20@gmail.com');
+select * from clienti;
+--TRANZACTII
+insert into tranzactii values(ct_cod_tranzactie.nextval,'CASH',NULL,1344);
+insert into tranzactii values(ct_cod_tranzactie.nextval,'CARD','BCR',672);
+insert into tranzactii values(ct_cod_tranzactie.nextval,'CARD','BT',1680);
+insert into tranzactii values(ct_cod_tranzactie.nextval,'CASH',NULL,2352);
+insert into tranzactii values(ct_cod_tranzactie.nextval,'CARD','ING',8960);
+insert into tranzactii values(ct_cod_tranzactie.nextval,'CARD','BT',2240);
+insert into tranzactii values(ct_cod_tranzactie.nextval,'CASH',NULL,2160);
+insert into tranzactii values(ct_cod_tranzactie.nextval,'CARD','BRD',2592);
+insert into tranzactii values(ct_cod_tranzactie.nextval,'CARD','BRD',4480);
+insert into tranzactii values(ct_cod_tranzactie.nextval,'CASH',NULL,2352);
+insert into tranzactii values(ct_cod_tranzactie.nextval,'CARD','BT',17920);
+insert into tranzactii values(ct_cod_tranzactie.nextval,'CARD','BCR',8960);
+insert into tranzactii values(ct_cod_tranzactie.nextval,'CASH',NULL,6144);
+insert into tranzactii values(ct_cod_tranzactie.nextval,'CARD','ING',2352);
+insert into tranzactii values(ct_cod_tranzactie.nextval,'CARD','BT',2688);
+insert into tranzactii values(ct_cod_tranzactie.nextval,'CARD','BT',1960);
+insert into tranzactii values(ct_cod_tranzactie.nextval,'CASH',NULL,2016);
+insert into tranzactii values(ct_cod_tranzactie.nextval,'CARD','BT',2744);
+insert into tranzactii values(ct_cod_tranzactie.nextval,'CARD','BT',2240);
+insert into tranzactii values(ct_cod_tranzactie.nextval,'CARD','BT',2240);
+
+--REZERVARI
+insert into rezervari values(1,8,1,1,to_date('18-june-2024'),to_date('22-june-2024'),2);
+insert into rezervari values(1,13,2,2,to_date('1-july-2024'),to_date('3-july-2024'),2);
+insert into rezervari values(2,9,3,3,to_date('24-august-2024'),to_date('29-august-2024'),2);
+insert into rezervari values(1,5,4,4,to_date('15-june-2023'),to_date('21-june-2023'),2);
+insert into rezervari values(2,1,5,5,to_date('22-june-2024'),to_date('26-june-2024'),2);
+insert into rezervari values(1,2,6,6,to_date('8-august-2024'),to_date('13-august-2024'),2);
+insert into rezervari values(2,14,7,7,to_date('16-february-2025'),to_date('21-february-2025'),3);
+insert into rezervari values(2,10,8,8,to_date('21-june-2024'),to_date('27-june-2024'),3);
+insert into rezervari values(2,6,9,9,to_date('5-september-2024'),to_date('10-september-2024'),4);
+insert into rezervari values(1,7,10,10,to_date('2-september-2024'),to_date('8-september-2024'),2);
+insert into rezervari values(2,12,11,11,to_date('10-november-2024'),to_date('18-november-2024'),5);
+insert into rezervari values(1,11,12,12,to_date('13-march-2024'),to_date('17-march-2024'),6);
+insert into rezervari values(1,3,13,13,to_date('18-july-2024'),to_date('24-july-2024'),3);
+insert into rezervari values(1,8,14,14,to_date('16-july-2024'),to_date('23-july-2024'),2);
+insert into rezervari values(1,4,15,15,to_date('23-december-2023'),to_date('29-december-2023'),2);
+insert into rezervari values(1,10,17,17,to_date('22-june-2024'),to_date('28-june-2024'),2);
+insert into rezervari values(1,6,18,18,to_date('3-july-2024'),to_date('10-july-2024'),2);
+insert into rezervari values(1,2,6,19,to_date('15-september-2023'),to_date('20-september-2023'),2);
+insert into rezervari values(1,2,16,16,to_date('1-january-2023'),to_date('6-january-2023'),2);
+insert into rezervari values(1,2,16,17,to_date('21-december-2024'),to_date('23-december-2024'),2);
+
+--TIPURI_CAMERA_HOTEL
+insert into tipuri_camera_hotel values(1,1,3.2);
+insert into tipuri_camera_hotel values(1,2,3.2);
+insert into tipuri_camera_hotel values(1,3,3.2);
+insert into tipuri_camera_hotel values(1,4,3.2);
+insert into tipuri_camera_hotel values(1,5,3.2);
+insert into tipuri_camera_hotel values(1,6,3.2);
+insert into tipuri_camera_hotel values(2,1,3.2);
+insert into tipuri_camera_hotel values(2,2,3.2);
+insert into tipuri_camera_hotel values(2,3,3.2);
+insert into tipuri_camera_hotel values(2,4,3.2);
+insert into tipuri_camera_hotel values(2,5,3.2);
+insert into tipuri_camera_hotel values(2,6,3.2);
+insert into tipuri_camera_hotel values(3,1,3.2);
+insert into tipuri_camera_hotel values(3,2,3.2);
+insert into tipuri_camera_hotel values(3,3,3.2);
+insert into tipuri_camera_hotel values(3,4,3.2);
+insert into tipuri_camera_hotel values(3,5,3.2);
+insert into tipuri_camera_hotel values(3,6,3.2);
+insert into tipuri_camera_hotel values(4,1,3.2);
+insert into tipuri_camera_hotel values(4,2,3.2);
+insert into tipuri_camera_hotel values(4,3,3.2);
+insert into tipuri_camera_hotel values(4,4,3.2);
+insert into tipuri_camera_hotel values(4,5,3.2);
+insert into tipuri_camera_hotel values(4,6,3.2);
+insert into tipuri_camera_hotel values(5,1,2.8);
+insert into tipuri_camera_hotel values(5,2,2.8);
+insert into tipuri_camera_hotel values(5,3,2.8);
+insert into tipuri_camera_hotel values(5,4,2.8);
+insert into tipuri_camera_hotel values(5,5,2.8);
+insert into tipuri_camera_hotel values(5,6,2.8);
+insert into tipuri_camera_hotel values(6,1,2.8);
+insert into tipuri_camera_hotel values(6,2,2.8);
+insert into tipuri_camera_hotel values(6,3,2.8);
+insert into tipuri_camera_hotel values(6,4,2.8);
+insert into tipuri_camera_hotel values(6,5,2.8);
+insert into tipuri_camera_hotel values(6,6,2.8);
+insert into tipuri_camera_hotel values(7,1,2.8);
+insert into tipuri_camera_hotel values(7,2,2.8);
+insert into tipuri_camera_hotel values(7,3,2.8);
+insert into tipuri_camera_hotel values(7,4,2.8);
+insert into tipuri_camera_hotel values(7,5,2.8);
+insert into tipuri_camera_hotel values(7,6,2.8);
+insert into tipuri_camera_hotel values(8,1,2.4);
+insert into tipuri_camera_hotel values(8,2,2.4);
+insert into tipuri_camera_hotel values(8,3,2.4);
+insert into tipuri_camera_hotel values(8,4,2.4);
+insert into tipuri_camera_hotel values(8,5,2.4);
+insert into tipuri_camera_hotel values(9,1,2.4);
+insert into tipuri_camera_hotel values(9,2,2.4);
+insert into tipuri_camera_hotel values(9,3,2.4);
+insert into tipuri_camera_hotel values(9,4,2.4);
+insert into tipuri_camera_hotel values(9,5,2.4);
+insert into tipuri_camera_hotel values(10,1,2.4);
+insert into tipuri_camera_hotel values(10,2,2.4);
+insert into tipuri_camera_hotel values(10,3,2.4);
+insert into tipuri_camera_hotel values(10,4,2.4);
+insert into tipuri_camera_hotel values(10,5,2.4);
+insert into tipuri_camera_hotel values(11,1,3.2);
+insert into tipuri_camera_hotel values(11,2,3.2);
+insert into tipuri_camera_hotel values(11,3,3.2);
+insert into tipuri_camera_hotel values(11,4,3.2);
+insert into tipuri_camera_hotel values(11,5,3.2);
+insert into tipuri_camera_hotel values(11,6,3.2);
+insert into tipuri_camera_hotel values(12,1,3.2);
+insert into tipuri_camera_hotel values(12,2,3.2);
+insert into tipuri_camera_hotel values(12,3,3.2);
+insert into tipuri_camera_hotel values(12,4,3.2);
+insert into tipuri_camera_hotel values(12,5,3.2);
+insert into tipuri_camera_hotel values(12,6,3.2);
+insert into tipuri_camera_hotel values(13,1,2.4);
+insert into tipuri_camera_hotel values(13,2,2.4);
+insert into tipuri_camera_hotel values(13,3,2.4);
+insert into tipuri_camera_hotel values(14,1,2.4);
+insert into tipuri_camera_hotel values(14,2,2.4);
+insert into tipuri_camera_hotel values(14,3,2.4);
+insert into tipuri_camera_hotel values(15,1,2.4);
+insert into tipuri_camera_hotel values(15,2,2.4);
+insert into tipuri_camera_hotel values(15,3,2.4);
+insert into tipuri_camera_hotel values(15,4,2.4);
+
+
+--CERINTE
+--6
+set serveroutput on;
+CREATE OR REPLACE PROCEDURE camere_disponibile
+    (cod_hotel_p hoteluri.cod_hotel%type,
+     numar_nopti number) IS
+     type record_informatii is record
+        (denumire tipuri_camera.denumire%type,
+         capacitate tipuri_camera.capacitate%type,
+         pret number(7,2));
+     type record_camere is record
+        (cod_camera camere.cod_camera%type,
+         cod_tip_camera camere.cod_tip_camera%type);
+     type tablou_imbricat is table of record_camere;
+     type tablou_indexat is table of record_informatii index by pls_integer;
+     type vector is varray(7) of number(2,2);   
+     --tarifele pentru fiecare zi a saptamanii incepand cu duminica
+     tarife_aditionale vector := vector(0.03, 0.04, 0.04, 0.04, 0.05, 0.06, 0.03);
+     camere_disponibile tablou_imbricat;
+     informatii tablou_indexat;
+     exista number;
+BEGIN
+    --PAS 0: validare date primite
+    select count(*)
+    into exista
+    from hoteluri
+    where cod_hotel = cod_hotel_p;
+    
+    if exista = 0 then
+        DBMS_OUTPUT.PUT_LINE('Codul hotelului este INVALID!');
+        return;
+    end if;
+
+    --PAS 1: aflu camerele disponibile si le memorez intr-un tablou imbricat
+    --(nu este nevoie de un index anume si nu stiu cate vor fi)
+    select cod_camera, cod_tip_camera
+    bulk collect into camere_disponibile
+    from(
+        select cod_camera, cod_tip_camera
+        from camere c
+        where c.cod_hotel = cod_hotel_p
+        minus
+        select aux.cod_camera, cod_tip_camera
+        from camere c,
+        (select distinct cod_camera
+        from rezervari r
+        --hotelul curent & incadrarea datelor 
+        where r.cod_hotel = cod_hotel_p and not(data_plecare <= trunc(sysdate) or data_venire >= (trunc(sysdate) + numar_nopti))) aux
+        where c.cod_camera = aux.cod_camera
+        order by cod_tip_camera);
+        
+    --PAS 1.2: daca nu sunt camere disponibile
+    if camere_disponibile.count = 0 then
+        DBMS_OUTPUT.PUT_LINE('Nu exista camere disponibile momentan!');
+        RETURN;
+    end if;
+   
+    --PAS 2: aflu informatiile pentru fiecare tip de camere pe durata specificata de client
+    for i in (select tch.cod_tip_camera, tarif, denumire, capacitate, pret_noapte
+              from tipuri_camera_hotel tch, tipuri_camera tc
+              where tch.cod_tip_camera = tc.cod_tip_camera and tch.cod_hotel = cod_hotel_p) loop
+          informatii(i.cod_tip_camera).denumire := i.denumire;
+          informatii(i.cod_tip_camera).capacitate := i.capacitate;
+          informatii(i.cod_tip_camera).pret := (i.pret_noapte * i.tarif + i.pret_noapte * i.tarif * tarife_aditionale(to_char(sysdate,'D'))) * numar_nopti;
+    end loop;
+
+   --PAS 3: afisarea camerelor disponibile alaturi de informatiile necesare
+   for i in 1..camere_disponibile.last loop
+     DBMS_OUTPUT.PUT_LINE('Camera cu numarul ' || camere_disponibile(i).cod_camera || ':');
+     DBMS_OUTPUT.PUT_LINE(informatii(camere_disponibile(i).cod_tip_camera).denumire);
+     DBMS_OUTPUT.PUT_LINE('Capacitate ' || informatii(camere_disponibile(i).cod_tip_camera).capacitate);
+     DBMS_OUTPUT.PUT_LINE('Pret ' || informatii(camere_disponibile(i).cod_tip_camera).pret || ' RON');
+     DBMS_OUTPUT.PUT_LINE('-------------------------------------------------------');
+   end loop;
+    
+EXCEPTION
+    when value_error then
+        DBMS_OUTPUT.PUT_LINE('Nu se poate calcula pretul momentan! Valoarea care trebuie stocata in atributul PRET depaseste constrangerile de la definire!');
+    when others then
+        DBMS_OUTPUT.PUT_LINE('In cadrul procedurii CAMERE_DISPONIBILE a aparut o exceptie care trebuie identificata!');
+END camere_disponibile;
+/
+
+select *
+from rezervari
+where cod_hotel = 2;
+
+select *
+from camere
+where cod_hotel = 2;
+
+BEGIN
+    camere_disponibile(1,10000);
+END;
+/
+
+
+--7
+set serveroutput on;
+
+create table emailuri_checkout(
+    mesaj varchar2(2000),
+    email varchar2(30));
+    
+CREATE OR REPLACE PROCEDURE generare_emailuri_check_out_1 IS
+    cursor date_hoteluri is(
+        select cod_hotel, denumire
+        from hoteluri);
+    cursor rezervari_incheiate(cod_hotel_p hoteluri.cod_hotel%type) is(
+        select nume, prenume, email
+        from rezervari r, clienti c
+        where r.cod_client = c.cod_client and cod_hotel = cod_hotel_p and data_plecare = trunc(sysdate));
+    cod_hotel hoteluri.cod_hotel%type;
+    denumire hoteluri.denumire%type;
+    mesaj varchar2(2000);  
+BEGIN
+    --eliminam datele anterioare pentru a nu retrimite emailuri
+    delete from emailuri_checkout;
+    --cursor clasic
+    open date_hoteluri;
+    loop
+        --pentru fiecare hotel al antreprenorului 
+        fetch date_hoteluri into cod_hotel, denumire;
+        exit when date_hoteluri%notfound;
+        --ciclu cursor
+        for i in rezervari_incheiate(cod_hotel) loop
+                mesaj := 'Stimate ' || i.nume || ' ' || i.prenume || ',
+Va multumim ca ati ales ' || denumire || ' pentru sejurul dumneavoastra! Speram ca ati avut o experienta placuta si ca v-ati simtit ca acasa în timpul sederii.
+
+Vrem sa va reamintim ca data de check-out este astazi, 11:00. Va rugam sa verificati ca toate apartamentele si serviciile au fost achitate inainte de plecare.
+
+Daca aveti întrebari sau aveti nevoie de asistenta suplimentara, nu ezitati sa contactati receptia sau sa raspundeti acestui e-mail. Echipa noastra este mereu disponibila pentru a va ajuta!
+
+De asemenea, daca doriti sa rezervati o noua vacanta la ' || denumire || ', nu ezitati sa ne contactati. Am fi încântati sa va primim din nou!
+
+Va dorim o calatorie placuta si speram sa va avem din nou printre oaspetii nostri în viitorul apropiat.
+
+Cu cele mai bune gânduri,
+Echipa ' || denumire;
+                insert into emailuri_checkout values(mesaj, i.email);
+        end loop;
+    end loop;
+    close date_hoteluri;
+        
+EXCEPTION
+    when value_error then
+        DBMS_OUTPUT.PUT_LINE('A aparut o exceptie in procedura GENERARE_EMAILURI_CHECK_OUT legata de lungimea mesajului!');
+    when others then
+        DBMS_OUTPUT.PUT_LINE('A aparut o exceptie in procedura GENERARE_EMAILURI_CHECK_OUT! ' || sqlerrm);
+END;
+/
+
+EXEC generare_emailuri_check_out_1;
+
+select *
+from emailuri_checkout;
+
+CREATE OR REPLACE PROCEDURE generare_emailuri_check_out IS
+    cursor date_hoteluri is(
+        select cod_hotel, denumire
+        from hoteluri);
+    cursor rezervari_incheiate(cod_hotel_p hoteluri.cod_hotel%type) is(
+        select nume, prenume, email
+        from rezervari r, clienti c
+        where r.cod_client = c.cod_client and cod_hotel = cod_hotel_p and data_plecare = trunc(sysdate));
+    cod_hotel hoteluri.cod_hotel%type;
+    denumire hoteluri.denumire%type;
+    mesaj varchar2(2000);  
+BEGIN
+    --cursor clasic
+    open date_hoteluri;
+    loop
+        --pentru fiecare hotel al antreprenorului 
+        fetch date_hoteluri into cod_hotel, denumire;
+        exit when date_hoteluri%notfound;
+        --ciclu cursor
+        for i in rezervari_incheiate(cod_hotel) loop
+            BEGIN
+                mesaj := 'Stimate ' || i.nume || ' ' || i.prenume || ',
+Va multumim ca ati ales ' || denumire || ' pentru sejurul dumneavoastra! Speram ca ati avut o experienta placuta si ca v-ati simtit ca acasa în timpul sederii.
+
+Vrem sa va reamintim ca data de check-out este astazi, 11:00. Va rugam sa verificati ca toate apartamentele si serviciile au fost achitate inainte de plecare.
+
+Daca aveti întrebari sau aveti nevoie de asistenta suplimentara, nu ezitati sa contactati receptia sau sa raspundeti acestui e-mail. Echipa noastra este mereu disponibila pentru a va ajuta!
+
+De asemenea, daca doriti sa rezervati o noua vacanta la ' || denumire || ', nu ezitati sa ne contactati. Am fi încântati sa va primim din nou!
+
+Va dorim o calatorie placuta si speram sa va avem din nou printre oaspetii nostri în viitorul apropiat.
+
+Cu cele mai bune gânduri,
+Echipa ' || denumire;
+
+                UTL_MAIL.SEND(
+                    sender => 'bejenaruioana20@gmail.com',
+                    recipients => i.email,
+                    subject => 'Check OUT',
+                    message => mesaj
+                );
+            EXCEPTION
+                when others then
+                    DBMS_OUTPUT.PUT_LINE('Nu s-a putut trimite emailul de CHECK OUT pentru ' || i.nume || ' ' || i.prenume || '.');
+                    DBMS_OUTPUT.PUT_LINE('Eroare la trimiterea emailului: ' || SQLERRM);
+            END;
+        end loop;
+    end loop;
+    close date_hoteluri;
+        
+EXCEPTION
+    when others then
+        DBMS_OUTPUT.PUT_LINE('A aparut o exceptie in procedura GENERARE_EMAILURI_CHECK_OUT!');
+END;
+/
+
+SELECT * FROM DBA_NETWORK_ACLS;
+SELECT acl, principal, privilege, is_grant
+FROM dba_network_acl_privileges
+WHERE acl = '/sys/acls/smtp_acl.xml';
+
+select *
+from rezervari
+where trunc(sysdate) = data_plecare;
+
+EXEC generare_emailuri_check_out;
+
+--8
+--functia apelata zilnic
+CREATE OR REPLACE FUNCTION abonament_preferat
+    RETURN abonamente.denumire%type IS
+    denumire_p abonamente.denumire%type;
+BEGIN
+    --o tabela auxiliara care contine date necesare pentru comparare
+    with aux as(
+    select denumire, count(*) as ct, pret_pe_zi
+    --se selecteaza doar rezervarile in desfasurarea zilei curente
+    from (select distinct cod_client
+          from rezervari
+          where data_venire <= trunc(sysdate) and trunc(sysdate) <= data_plecare) rez, clienti c, abonamente a
+    --se realizeaza joinurile
+    where rez.cod_client = c.cod_client and c.cod_abonament = a.cod_abonament
+    group by denumire, pret_pe_zi)
+    select denumire
+    into denumire_p
+    from aux 
+    --doar daca are numarul maxim pe acea zi si pretul minim
+    where (ct, pret_pe_zi) in (select max(ct), min(pret_pe_zi) from aux);
+    
+    return denumire_p;
+EXCEPTION
+    --in cazul in care nu exista rezervari si implicit un abonament preferat pe acea zi
+    when no_data_found then
+        DBMS_OUTPUT.PUT_LINE('Nu exista rezervari in decursul acestei zile! Nu se poate stabili un abonament preferat de clienti.');
+        return 'NONE';
+    when too_many_rows then
+        DBMS_OUTPUT.PUT_LINE('Exista mai multe abonamente cu numar maxim de clienti si pret minim!');
+        return 'MORE';
+    when others then
+        raise_application_error(-20008, 'A aparut o eroare neasteptata in functia ABONAMENT_PREFERAT ce trebuie rezolvata! ' || sqlerrm);
+END;
+/
+
+create table evidenta_abonamente(
+    denumire varchar2(15),
+    contor number(4));
+
+CREATE OR REPLACE PROCEDURE aflare_abonament_preferat_pe_an IS
+    denumire_p abonamente.denumire%type;
+BEGIN
+   --daca este prima zi din an trebuie resetata tabela 
+   if trunc(sysdate) = trunc(sysdate, 'YEAR') then
+        delete from evidenta_abonamente;
+        --pentru fiecare denumire din tabela ABONAMENTE
+        for i in (select denumire from abonamente) loop
+            insert into evidenta_abonamente values (i.denumire,0);
+        end loop;
+    end if;
+    --in fiecare zi inclusiv prima din an trebuie updatate datele
+    denumire_p := abonament_preferat();
+    update evidenta_abonamente
+    set contor = contor + 1
+    where denumire = denumire_p;
+END;
+/
+
+CREATE OR REPLACE TRIGGER actualizare_evidenta_abonamente 
+AFTER INSERT ON abonamente
+FOR EACH ROW
+BEGIN
+    insert into evidenta_abonamente values(:NEW.denumire, 0);
+END;
+/
+
+CREATE OR REPLACE TRIGGER actualizare_2_evidenta_abonamente
+AFTER DELETE ON abonamente
+FOR EACH ROW
+BEGIN
+    delete from evidenta_abonamente
+    where denumire = :OLD.denumire;
+END;
+/
+
+
+
+BEGIN
+    DBMS_SCHEDULER.create_job(
+        job_name => 'job_aflare_abonament_preferat_pe_an',
+        job_type => 'PLSQL_BLOCK',
+        job_action => 'BEGIN aflare_abonament_preferat_pe_an; END;',
+        start_date => SYSTIMESTAMP,
+        repeat_interval => 'FREQ=DAILY; BYHOUR=23; BYMINUTE=59; BYSECOND=59;',
+        enabled => TRUE,
+        comments => 'Zilnic se afla abonamentul preferat de clienti cu scopul de a avea statistici pe an.'
+        );
+END;
+/
+
+select job_name, state, enabled
+from user_scheduler_jobs
+where job_name = 'JOB_AFLARE_ABONAMENT_PREFERAT_PE_AN';
+
+
+
+
+BEGIN
+    DBMS_OUTPUT.PUT_LINE(abonament_preferat());
+END;
+/
+
+insert into abonamente values(7,333,'ABONAMENT_TEST');
+select *
+from abonamente;
+
+delete from abonamente
+where cod_abonament = 7;
+select *
+from evidenta_abonamente;
+
+select *
+from rezervari
+where data_venire <= trunc(sysdate) and trunc(sysdate) <= data_plecare;
+
+select *
+from clienti;
+insert into abonamente values(333, 150, 'TEST');
+insert into clienti values(333,333,'TEST','TEST',trunc(sysdate),'12345678911111','0770','@email');
+insert into rezervari values(1,1,333,40,trunc(sysdate),trunc(sysdate) + 1,1);
+
+BEGIN
+    DBMS_OUTPUT.PUT_LINE(abonament_preferat());
+END;
+/
+
+--9
+CREATE OR REPLACE PROCEDURE program_de_curatenie(
+    cod_hotel_p hoteluri.cod_hotel%type,
+    numar_angajati number) IS
+    type linie is record(
+        denumire_camera tipuri_camera.denumire%type,
+        cod_camera camere.cod_camera%type,
+        etaj camere.etaj%type,
+        nume clienti.nume%type,
+        prenume clienti.prenume%type,
+        numar_telefon clienti.numar_telefon%type,
+        denumire_abonament abonamente.denumire%type);
+    type tabel is table of linie;
+    t tabel;
+    numar number;
+    ct number;
+    cod_dept departamente.cod_departament%type;
+    prea_mult_de_munca exception;
+    prea_multi_angajati exception;
+BEGIN
+    --PAS 1: verificarea numarului de angajati
+    select cod_departament
+    into cod_dept
+    from departamente 
+    where denumire = 'CURATENIE';
+
+    select count(*)
+    into numar
+    from angajati
+    where cod_hotel = cod_hotel_p and cod_departament = cod_dept;
+    
+    if numar < numar_angajati then
+        raise prea_multi_angajati;
+    end if;
+    --PAS 2: preluarea camerelor ce trebuiesc curatate intr un tip de date personalizat
+    select tc.denumire, c.cod_camera, etaj, nume, prenume, numar_telefon, a.denumire
+    bulk collect into t
+    from tipuri_camera tc, camere c, (select cod_camera, cod_client 
+                                      from rezervari
+                                      where data_plecare >= trunc(sysdate) and data_venire <= trunc(sysdate) and cod_hotel = cod_hotel_p) rez, clienti cl, abonamente a
+    where tc.cod_tip_camera = c.cod_camera and c.cod_hotel = cod_hotel_p and
+    c.cod_camera = rez.cod_camera and rez.cod_client = cl.cod_client and cl.cod_abonament = a.cod_abonament
+    order by 1;
+    --PAS 3: in cazul in care nu sunt camere
+    if t.count = 0 then
+        DBMS_OUTPUT.PUT_LINE('Nu sunt camere disponibile pentru curatare momentan!');
+        return;
+    end if;
+    --PAS 4: verificarea cantitatii de munca
+    if ceil(t.count / numar_angajati) > 8 then
+        raise prea_mult_de_munca;
+    end if;
+    --PAS 5: intocmirea programului
+    for i in 1..numar_angajati loop
+        DBMS_OUTPUT.PUT_LINE('ANGAJAT ' || i);
+        DBMS_OUTPUT.PUT_LINE('--------------------------------------------------');
+        ct := i;
+        loop
+            exit when ct > t.count;
+            DBMS_OUTPUT.PUT_LINE('Cod camera: ' || t(ct).cod_camera);
+            DBMS_OUTPUT.PUT_LINE('Etaj: ' || t(ct).etaj);
+            DBMS_OUTPUT.PUT_LINE('Denumire camera: ' || t(ct).denumire_camera);
+            DBMS_OUTPUT.PUT_LINE('Client: ' || t(ct).nume || ' ' || t(ct).prenume);
+            DBMS_OUTPUT.PUT_LINE('Denumire abonament: ' || t(ct).denumire_abonament);
+            DBMS_OUTPUT.PUT_LINE('Contact: ' || t(ct).numar_telefon);
+            DBMS_OUTPUT.PUT_LINE('-------------');
+            ct := ct + numar_angajati;
+        end loop;
+        DBMS_OUTPUT.PUT_LINE('--------------------------------------------------');
+    end loop;
+EXCEPTION
+    when prea_multi_angajati then
+        DBMS_OUTPUT.PUT_LINE('Numarul de angajati dat ca parametru depaseste numar de angajati disponibili la acest hotel!');
+    when prea_mult_de_munca then
+        DBMS_OUTPUT.PUT_LINE('Nu s-a putut realiza un program corect de munca pentru angajatii din aceasta zi! Trebuie luate masuri!');
+    when zero_divide then
+        DBMS_OUTPUT.PUT_LINE('A aparut o impartire la zero care provine probabil de la parametrul NUMAR_ANGAJATI');
+    when others then
+        raise_application_error(-20000,'A aparut o eroare neidentificata in cadrul procedurii PROGRAM_DE_CURATENIE! ' || sqlerrm);
+END;
+/
+
+
+select *
+from departamente;
+
+select *
+from angajati
+where cod_departament = 2 and cod_hotel = 2;
+
+EXEC program_de_curatenie(2,1);
+
+--10
+CREATE OR REPLACE TRIGGER protectie_rezervari_2
+BEFORE INSERT ON rezervari
+DECLARE
+    valoare variabile_globale.valoare_char%type;
+BEGIN
+    select valoare_char
+    into valoare
+    from variabile_globale
+    where nume = 'user_curent';
+    
+    if USER != valoare then
+        raise_application_error(-20010, 'Nu poti efectua momentan inserari in tabela REZERVARI!');
+    end if;
+END protectie_rezervari_2;
+/
+
+--11
+CREATE OR REPLACE TRIGGER limita_comision_angajati
+FOR INSERT OR UPDATE ON angajati
+COMPOUND TRIGGER
+    type date_angajat is record(
+        cod_angajat angajati.cod_angajat%type,
+        comision angajati.comision%type);
+    type tablou_imbricat is table of date_angajat;
+    t tablou_imbricat := tablou_imbricat();
+    index_curent number := 1;
+    --valoarea limita care poate fi modificata aici ulterior
+    valoare_limita number := 0.3;
+--dupa fiecare update sau insert facut asupra unei linii
+AFTER EACH ROW IS
+BEGIN
+    --se adauga in tabloul imbricat datele despre angajat
+    t.extend;
+    t(index_curent).cod_angajat := :NEW.cod_angajat;
+    t(index_curent).comision := :NEW.comision;
+    --se trece la urmatorul index 
+    index_curent := index_curent + 1;
+END AFTER EACH ROW;
+--dupa ce se termina update-urile sau insert-urile asupra tabelei
+AFTER STATEMENT IS
+BEGIN
+    --verificam ca valoarea comisionului sa nu intreaca limita
+    for i in 1..index_curent - 1 loop
+        if t(i).comision > valoare_limita then
+            update angajati
+            set comision = valoare_limita
+            where cod_angajat = t(i).cod_angajat;
+        end if;
+    end loop;
+END AFTER STATEMENT;
+END;
+/
+
+DECLARE
+    cod_departament_p angajati.cod_departament%type := 1;
+    comision_minim angajati.comision%type;
+BEGIN
+    select min(comision)
+    into comision_minim
+    from angajati
+    where cod_departament = cod_departament_p and comision is not NULL;
+    DBMS_OUTPUT.PUT_LINE(comision_minim);
+    update angajati
+    set comision = comision + comision_minim
+    where cod_departament = cod_departament_p and comision is not NULL;
+    
+    update angajati
+    set comision = comision_minim
+    where cod_departament = cod_departament_p and comision is NULL;
+EXCEPTION
+    when no_data_found then
+        DBMS_OUTPUT.PUT_LINE('Nu s-a gasit un comision minim. Nu exista departamentul cu codul dat!');
+    when others then
+        DBMS_OUTPUT.PUT_LINE('A aparut o eroare neidentificata! ' || sqlerrm);
+END;
+/
+
+--triggerul care asigura modifica corecta a abonamentului -> corectitudine cerinta 8 (clientii isi pot schimba abonamentele in timpul rezervarii)
+CREATE OR REPLACE TRIGGER modificare_abonamente_clienti 
+BEFORE UPDATE ON clienti
+FOR EACH ROW
+DECLARE
+    cod_tranzactie_p rezervari.cod_tranzactie%type;
+    zile_ramase number;
+    pret_pe_zi_1 abonamente.pret_pe_zi%type;
+    pret_pe_zi_2 abonamente.pret_pe_zi%type;
+BEGIN
+    if updating('cod_abonament') then
+        --PAS 1: gasirea tranzactiei cu codul cel mai mic 
+        --(daca un client are mai multe rezervari active in cea cu codul cel mai mic este adaugat pretul abonamentului)
+        BEGIN
+            select min(cod_tranzactie)
+            into cod_tranzactie_p
+            from rezervari
+            where cod_client = :OLD.cod_client and data_venire <= trunc(sysdate) 
+            and trunc(sysdate) <= data_plecare;
+        EXCEPTION
+            --daca nu exista rezervari active
+            when NO_DATA_FOUND then
+                cod_tranzactie_p := NULL;
+        END;
+    
+        --modificarile apar doar daca sunt rezervari active
+        if cod_tranzactie_p is not null then
+            --cate zile sunt ramase din rezervare
+            select data_plecare - trunc(sysdate) + 1
+            into zile_ramase
+            from rezervari
+            where cod_tranzactie = cod_tranzactie_p;
+            --pretul abonamentului vechi
+            select pret_pe_zi
+            into pret_pe_zi_1
+            from abonamente
+            where cod_abonament = :OLD.cod_abonament;
+            --pretul abonamentului nou
+            select pret_pe_zi
+            into pret_pe_zi_2
+            from abonamente
+            where cod_abonament = :NEW.cod_abonament;
+            --modificarea sumei tranzactiei
+            update tranzactii
+            set suma = suma - (pret_pe_zi_1 * zile_ramase) + (pret_pe_zi_2 * zile_ramase)
+            where cod_tranzactie = cod_tranzactie_p;
+            --cat are clientul de dat inapoi sau de dat in plus
+            if pret_pe_zi_1 * zile_ramase > pret_pe_zi_2 * zile_ramase then
+                DBMS_OUTPUT.PUT_LINE('Clientul trebuie sa PRIMEASCA inapoi ' || 
+                    (pret_pe_zi_1 * zile_ramase - pret_pe_zi_2 * zile_ramase) || ' RON.');
+            elsif pret_pe_zi_1 * zile_ramase < pret_pe_zi_2 * zile_ramase then
+                DBMS_OUTPUT.PUT_LINE('Clientul trebuie sa PLATEASCA ' || 
+                    abs(pret_pe_zi_1 * zile_ramase - pret_pe_zi_2 * zile_ramase) || ' RON.');
+            end if;
+        end if;
+    end if;
+EXCEPTION
+    when NO_DATA_FOUND then
+        DBMS_OUTPUT.PUT_LINE('Nu s-au găsit date pentru clientul ' || :OLD.cod_client || '.');
+    when others then
+        RAISE_APPLICATION_ERROR(-20008, 'A aparut o eroare neidentificata in triggerul MODIFICARE_ABONAMENT_CLIENTI! ' || sqlerrm);
+END;
+/
+
+
+select *
+from rezervari
+where data_venire <= trunc(sysdate) and trunc(sysdate) <= data_plecare;
+
+select *
+from tranzactii
+where cod_tranzactie = 43;
+
+select *
+from clienti
+where cod_client = 9;
+
+update clienti
+set cod_abonament = 2
+where cod_client = 9;
+
+select *
+from tranzactii
+where cod_tranzactie = 43;
+
+--12
+create table evidenta_inserari_rezervari(
+    data timestamp,
+    nume_operatie varchar2(255),
+    nume_obiect varchar2(255),
+    nume_utilizator varchar2(255));
+
+CREATE OR REPLACE TRIGGER trigger_evidenta_inserari_rezervari 
+AFTER ALTER OR DROP ON SCHEMA
+BEGIN
+    if (ORA_DICT_OBJ_TYPE = 'TRIGGER') 
+        and (ORA_DICT_OBJ_NAME = 'PROTECTIE_REZERVARI_1' OR ORA_DICT_OBJ_NAME = 'PROTECTIE_REZERVARI_2') THEN
+        insert into evidenta_inserari_rezervari(data, nume_operatie, nume_obiect, nume_utilizator)
+        values (
+            systimestamp,
+            ORA_SYSEVENT,
+            ORA_DICT_OBJ_NAME,
+            USER
+        );
+    end if;
+END;
+/
+
+select *
+from evidenta_inserari_rezervari;
+
+--13
+set serveroutput on;
+select *
+from variabile_globale;
+
+CREATE OR REPLACE TRIGGER protectie_rezervari_1
+BEFORE INSERT ON rezervari
+FOR EACH ROW
+DECLARE
+    exista number;
+BEGIN
+    select count(*)
+    into exista
+    from rezervari
+    where cod_camera = :NEW.cod_camera and
+    cod_hotel = :NEW.cod_hotel and
+    :NEW.data_venire < data_plecare and
+    :NEW.data_plecare > data_venire; 
+    
+    if exista = 1 then
+        raise_application_error(-20000, 'A aparut o eroare, rezervarea nu s-a putut face!');
+    else
+        DBMS_OUTPUT.PUT_LINE('Rezervare realizata cu succes!');
+    end if;
+EXCEPTION
+    when others then
+        raise_application_error(-20000, 'A aparut o eroare neidentificata in triggerul PROTECTIE_REZERVARI_1! ' || sqlerrm);
+END protectie_rezervari_1;
+/
+
+
+CREATE OR REPLACE PACKAGE creare_rezervare AS
+    --variabile necesare pachetului
+    type date_subprograme is record(
+        cod_tranzactie_d rezervari.cod_tranzactie%type,
+        cod_client_d clienti.cod_client%type,
+        cod_abonament_d clienti.cod_abonament%type,
+        cod_tip_camera_d camere.cod_tip_camera%type,
+        cod_hotel_d rezervari.cod_hotel%type,
+        numar_nopti_d number);
+    
+    d date_subprograme; 
+    
+    type date_inserare is record(
+        cod_camera_d rezervari.cod_camera%type,
+        data_venire_d rezervari.data_venire%type,
+        data_plecare_d rezervari.data_plecare%type,
+        numar_persoane_d rezervari.numar_persoane%type);
+    di date_inserare;
+    
+    type vector is varray(8) of varchar2(20);
+    banci_permise vector := vector('BT','BCR','BRD','ING','Raiffeisen Bank','CEC','UNICREDIT','Alpha Bank');
+    
+    PROCEDURE instructiuni_pachet;
+    PROCEDURE update_user;
+    PROCEDURE inserare_client(
+        denumire_abonament_p abonamente.denumire%type,
+        nume_p clienti.nume%type,
+        prenume_p clienti.prenume%type,
+        data_nastere_p clienti.data_nastere%type,
+        cnp_p clienti.cnp%type,
+        numar_telefon_p clienti.numar_telefon%type,
+        email_p clienti.email%type);
+    FUNCTION gasire_client(cnp_p clienti.cnp%type)
+        RETURN clienti.cod_client%type;
+    PROCEDURE actualizare_abonament(denumire_abonament_p abonamente.denumire%type);
+    FUNCTION pret_total
+        RETURN tranzactii.suma%type;
+    PROCEDURE inserare_tranzactie(
+        tip_tranzactie_p tranzactii.tip_tranzactie%type,
+        banca_p tranzactii.banca%type default NULL);
+    PROCEDURE inserare_rezervare(
+        cnp_p clienti.cnp%type,
+        cod_camera_p rezervari.cod_camera%type,
+        cod_hotel_p rezervari.cod_hotel%type,
+        data_venire_p rezervari.data_venire%type,
+        data_plecare_p rezervari.data_plecare%type,
+        numar_persoane_p rezervari.numar_persoane%type);
+    PROCEDURE incheie_rezervare;
+    PROCEDURE forma_initiala;
+END creare_rezervare;
+/
+
+
+set serveroutput on;
+CREATE OR REPLACE PACKAGE BODY creare_rezervare AS
+    --procedura care prezinta cum se utilizeaza pachetul pentru a reusi sa se insereze corect si complet o rezervare
+    PROCEDURE instructiuni_pachet IS
+    BEGIN
+     DBMS_OUTPUT.PUT_LINE('Acest pachet contine instructiunile de utilizare pentru functiile si procedurile continute:');
+     DBMS_OUTPUT.PUT_LINE('PAS 1: Procedura UPDATE_USER() este necesara pentru ca doar userul curent sa aiba drepturi la inserari in REZERVARI.');
+     DBMS_OUTPUT.PUT_LINE('PAS 2: Procedura INSERARE_REZERVARE(cnp_client, cod_camera, cod_hotel, to_date(data_venire_format_DD-MONTH-YYYY), to_date(data_plecare_format_DD-MONTH-YYYY), numar_persoane).');
+     DBMS_OUTPUT.PUT_LINE('----------------------------------------------------------------------------------------------------------------------');
+     DBMS_OUTPUT.PUT_LINE('In cazul in care nu au aparut erori se continua in felul urmator:');
+     DBMS_OUTPUT.PUT_LINE('PAS 3.1: (optional, daca nu exista clientul in baza de date si nu au aparut mesaje de eroare) INSERARE_CLIENT(denumire_abonament, nume, prenume, to_date(data_nastere_format_DD-MONTH-YYYY), cnp, numar_telefon, email).');
+     DBMS_OUTPUT.PUT_LINE('PAS 3.2: (optional, daca clientul vrea sa isi modifice codul abonamentului) ACTUALIZARE_ABONAMENT(denumire_abonament)');
+     DBMS_OUTPUT.PUT_LINE('PAS 4: Procedura INSERARE_TRANZACTIE(tip_tranzactie(CARD / CASH), acronim_banca(BT / BCR / BRD / ING).');
+     DBMS_OUTPUT.PUT_LINE('PAS 5: Procedura INCHEIE_REZERVARE() pentru a finaliza demersul inserarii unei rezervari.');
+     DBMS_OUTPUT.PUT_LINE('----------------------------------------------------------------------------------------------------------------------');
+     DBMS_OUTPUT.PUT_LINE('PAS 6: In cazul oricarei erori aparute dupa apelul procedurii INCHEIE_REZERVARE se apeleaza procedura FORMA_INTIALA.');
+ 
+    END;
+    --procedura prin care dam drepturi doar utilizatorului care a initiat inserarea pentru a nu exista date gresite in tabela REZERVARI
+    PROCEDURE update_user IS
+    BEGIN
+        --alter nu poate fi utilizat direct in limbajul PL/SQL si de aceea trebuie EXECUTE IMMEDIATE
+        --ne asiguram ca dam enable la trigger pentru a nu se insera intre timp alta rezervare
+        --este necesar pentru a putea face usor rezervarea, fara a da repetitiv peste problema indisponibilitatii camerei
+        execute immediate 'alter trigger protectie_rezervari_2 enable';
+        --update la user pentru ca userul curent sa poata introduce rezervarea
+        --fara commit pentru a nu pierde acest drept intre timp
+        update variabile_globale
+        set valoare_char = USER
+        where nume = 'user_curent';
+    END;
+    --in cazul in care clientul nu este in baza de date
+    PROCEDURE inserare_client(
+        denumire_abonament_p abonamente.denumire%type,
+        nume_p clienti.nume%type,
+        prenume_p clienti.prenume%type,
+        data_nastere_p clienti.data_nastere%type,
+        cnp_p clienti.cnp%type,
+        numar_telefon_p clienti.numar_telefon%type,
+        email_p clienti.email%type) IS
+        cod_abonament_p abonamente.cod_abonament%type;
+    BEGIN
+        select cod_abonament
+        into cod_abonament_p
+        from abonamente
+        where denumire = upper(denumire_abonament_p);
+        
+        d.cod_abonament_d := cod_abonament_p;
+        
+        insert into clienti values(d.cod_client_d, cod_abonament_p, nume_p, prenume_p, data_nastere_p, cnp_p, numar_telefon_p, email_p);
+    EXCEPTION
+        when no_data_found then
+            DBMS_OUTPUT.PUT_LINE('A aparut o eroare iar clientului cu codul ' || d.cod_client_d || ' i s-a pus abonamentul STANDARD!');
+            select cod_abonament
+            into cod_abonament_p
+            from abonamente
+            where denumire = 'STANDARD';
+            
+            d.cod_abonament_d := cod_abonament_p;
+            
+            insert into clienti values(d.cod_client_d, cod_abonament_p, nume_p, prenume_p, data_nastere_p, cnp_p, numar_telefon_p, email_p);
+        when others then
+            raise_application_error(-20013, 'A aparut o eroare neidentificata in procedura INSERARE_CLIENT din pachetul CREARE_REZERVARE! ' || sqlerrm);
+    END;
+    --functie pentru a gasi codul clientului
+    FUNCTION gasire_client(cnp_p clienti.cnp%type)
+         RETURN clienti.cod_client%type IS
+        cod_client_p clienti.cod_client%type;
+        cod_abonament_p clienti.cod_abonament%type;
+    BEGIN
+        --cautam codul
+        select cod_client, cod_abonament
+        into cod_client_p, cod_abonament_p
+        from clienti
+        where cnp = cnp_p;
+        DBMS_OUTPUT.PUT_LINE('Clientul a fost gasit si are abonamentul cu codul ' || cod_abonament_p || '! Continuati cu PAS 3.2!');
+        --daca a fost gasit clientul avem nevoie de codul abonamentului lui pentru tranzactii urmatoare
+        select cod_abonament
+        into d.cod_abonament_d
+        from clienti
+        where cod_client = cod_client_p;
+        
+        RETURN cod_client_p;
+    EXCEPTION
+        when no_data_found then
+            --voi pune valoarea in variabila pentru ca in acelasi timp pot sa apara modificari asupra secventei 
+            cod_client_p := ct_cod_client.nextval;
+            --trebuie inserat in cazul in care nu a mai fost la niciun hotel al antreprenorului
+            DBMS_OUTPUT.PUT_LINE('Clientul nu a fost gasit in baza de date. Apelati in continuare INSTRUCTIUNI_PACHET si apelati INSERARE_CLIENT cu informatiile necesare.'); 
+            RETURN cod_client_p;
+        when others then
+            raise_application_error(-20013, 'A aparut o eroare neidentificata in functia GASIRE_CLIENT din pachetul CREARE_REZERVARE! ' || sqlerrm);
+    END;
+    --actualizarea abonamentului daca este cazul
+    PROCEDURE actualizare_abonament(
+        denumire_abonament_p abonamente.denumire%type) IS
+        cod_abonament_p abonamente.cod_abonament%type;
+    BEGIN
+        select cod_abonament
+        into cod_abonament_p
+        from abonamente
+        where denumire = upper(denumire_abonament_p);
+        
+        update clienti
+        set cod_abonament = cod_abonament_p
+        where cod_client = d.cod_client_d;
+    EXCEPTION
+        when no_data_found then
+            DBMS_OUTPUT.PUT_LINE('Nu s-a putut face modificarea abonamentului! Verificati denumirea acestuia!');
+        when others then
+            raise_application_error(-20013, 'A aparut o eroare neidentificata in procedurs ACTUALIZARE_ABONAMENT! ' || sqlerrm);
+    END;
+    --functie pentru a calcula suma totala de platit pe aceasta rezervare
+    --trebuie luat in calcul abonamentul si sa fie platit o singura data
+    FUNCTION pret_total
+        RETURN tranzactii.suma%type IS
+        exista number;
+        suma_p tranzactii.suma%type := 0;
+        pret_noapte_p tipuri_camera.pret_noapte%type;
+        tarif_p tipuri_camera_hotel.tarif%type;
+        adaos tranzactii.suma%type;
+    BEGIN
+        --daca exista vreo alta rezervare a acestui client in desfasurare atunci acolo a fost deja adaugat pretul abonamentului
+        select count(*)
+        into exista
+        from rezervari
+        where cod_client = d.cod_client_d and data_venire <= trunc(sysdate) and trunc(sysdate) <= data_plecare; 
+        --pretul consta sigur in pretul camerei * tariful corespunzator hotelului * numarul de nopti
+        select pret_noapte
+        into pret_noapte_p
+        from tipuri_camera
+        where cod_tip_camera = d.cod_tip_camera_d;
+        --tariful aferent
+        select tarif
+        into tarif_p
+        from tipuri_camera_hotel
+        where cod_tip_camera = d.cod_tip_camera_d and cod_hotel = d.cod_hotel_d;
+        suma_p := pret_noapte_p * tarif_p * d.numar_nopti_d;
+        --daca trebuie adaugat si abonamentul
+        if exista = 0 then
+            select pret_pe_zi * (d.numar_nopti_d + 1)
+            into adaos
+            from abonamente
+            where cod_abonament = d.cod_abonament_d;
+            suma_p := suma_p + adaos;
+        end if;
+        
+        return suma_p;
+    EXCEPTION
+        when no_data_found then
+            raise_application_error(-20013, 'Nu s-a gasit o valoare cautata in tabele pe baza codurilor in functia PRET_TOTAL din pachetul CREARE_REZERVARE!');
+        when value_error then
+            raise_application_error(-20013, 'Eroare in functia PRET_TOTAL din pachetul CREARE_REZERVARE. Suma calculata pentru pret depaseste limitele tabelei TRANZACTII pentru coloana SUMA!');
+        when others then
+            raise_application_error(-20013, 'Eroare neidentificata in functia PRET_TOTAL din pachetul CREARE_REZERVARE! ' || sqlerrm);
+    END;
+    --procedura pentru a insera tranzactia aferenta rezervarii
+    PROCEDURE inserare_tranzactie(
+        tip_tranzactie_p tranzactii.tip_tranzactie%type,
+        banca_p tranzactii.banca%type default NULL) IS
+        suma_p tranzactii.suma%type;
+        banca_nepermisa exception;
+        ok number := 0;
+    BEGIN
+        for i in 1..banci_permise.count loop
+            if upper(banci_permise(i)) = upper(banca_p) then
+                ok := 1;
+            end if;
+        end loop;
+        if ok = 0 then
+            raise banca_nepermisa;
+        end if;
+        suma_p := pret_total();
+        insert into tranzactii values(d.cod_tranzactie_d, tip_tranzactie_p, banca_p, suma_p); 
+    EXCEPTION
+        when banca_nepermisa then
+            raise_application_error(-20013, 'Nu se poate face tranzactie prin aceasta banca! Schimbati banca sau platiti CASH!');
+    END;
+    --procedura principala
+    PROCEDURE inserare_rezervare(
+        cnp_p clienti.cnp%type,
+        cod_camera_p rezervari.cod_camera%type,
+        cod_hotel_p rezervari.cod_hotel%type,
+        data_venire_p rezervari.data_venire%type,
+        data_plecare_p rezervari.data_plecare%type,
+        numar_persoane_p rezervari.numar_persoane%type) IS
+    BEGIN
+        --date pentru subprograme
+        d.cod_client_d := gasire_client(cnp_p);
+        d.cod_tranzactie_d := ct_cod_tranzactie.nextval;
+        d.numar_nopti_d := data_plecare_p - data_venire_p;
+        d.cod_hotel_d := cod_hotel_p;
+        --date pentru inserarea rezervarii
+        di.cod_camera_d := cod_camera_p;
+        di.data_venire_d := data_venire_p;
+        di.data_plecare_d := data_plecare_p;
+        di.numar_persoane_d := numar_persoane_p;
+        --aflarea tipului de camere pentru viitoare operatii
+        select cod_tip_camera
+        into d.cod_tip_camera_d
+        from camere
+        where cod_camera = cod_camera_p and cod_hotel = cod_hotel_p;
+    
+   EXCEPTION
+        when no_data_found then
+            raise_application_error(-20013, 'NO_DATA_FOUND');
+        when too_many_rows then
+            raise_application_error(-20013, 'TOO_MANY_ROWS');
+        when others then
+            raise_application_error(-20013, 'Datele primite provoaca erori. Procesul inserarii unei rezervari nu poate fi initiat! ' || sqlerrm);
+            
+   END;
+   --definitivarea demersului si eliberarea constragerii produse de un trigger asupra tabelei REZERVARI
+   PROCEDURE incheie_rezervare IS
+   BEGIN
+    --se insereaza rezervarea si se vede daca a trecut de validarile triggerilor 
+    insert into rezervari values(di.cod_camera_d, d.cod_hotel_d, d.cod_client_d, d.cod_tranzactie_d, di.data_venire_d, di.data_plecare_d, di.numar_persoane_d);
+    --se elibereaza variabila globala
+    commit;
+    --se da disable la trigger deoarece userul si-a terminat inserarea
+    execute immediate 'alter trigger protectie_rezervari_2 disable';
+   END;
+   --in cazul in care au aparut orice fel de erori trebuie stearsa tranzactie, clientul poate ramane si sa fie gasit ulterior
+   PROCEDURE forma_initiala IS
+   BEGIN
+    delete from tranzactii 
+    where cod_tranzactie = d.cod_tranzactie_d;
+   END;
+END creare_rezervare;
+/
+
+select *
+from rezervari;
+
+select *
+from tranzactii;
+
+set serveroutput on;
+EXECUTE creare_rezervare.instructiuni_pachet();
+EXECUTE creare_rezervare.update_user();
+EXECUTE creare_rezervare.inserare_rezervare('1910228520086', 4, 1, trunc(sysdate) - 1, trunc(sysdate) + 2, 1);
+EXECUTE creare_rezervare.inserare_client('STANDARDD', 'test', 'test', to_date('12-JANUARY-2000'),'2980511520012','0770','@gmail');
+EXECUTE creare_rezervare.inserare_tranzactie(tip_tranzactie_p => 'CARD', banca_p => 'BT');
+EXECUTE creare_rezervare.incheie_rezervare();
+EXECUTE creare_rezervare.forma_initiala();
+
+
